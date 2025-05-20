@@ -1,58 +1,67 @@
 import streamlit as st
 import yfinance as yf
-import plotly.graph_objs as go
-from datetime import datetime, timedelta
+import pandas as pd
+import datetime
 
-st.set_page_config(layout="wide", page_title="글로벌 시가총액 Top 10 주가 변동")
+# -------------------------------
+# 1. 날짜 입력
+# -------------------------------
+st.title("야후 주식 데이터 분석")
 
-st.title("🌍 글로벌 시가총액 Top 10 기업의 최근 1년 주가 변동")
+today = datetime.date.today()
+default_start = today - datetime.timedelta(days=365)
 
-# 2024년 5월 기준 글로벌 시가총액 Top 10 (티커)
+start_date = st.date_input("시작 날짜", default_start)
+end_date = st.date_input("종료 날짜", today)
+
+# -------------------------------
+# 2. 종목 리스트 (예시로 top10 미리 지정)
+# -------------------------------
 top10 = {
     "Apple": "AAPL",
     "Microsoft": "MSFT",
-    "Saudi Aramco": "2222.SR",
-    "Nvidia": "NVDA",
-    "Alphabet (Google)": "GOOGL",
+    "Google": "GOOGL",
     "Amazon": "AMZN",
-    "Berkshire Hathaway": "BRK-B",
-    "Meta (Facebook)": "META",
-    "Eli Lilly": "LLY",
-    "TSMC": "TSM"
+    "Tesla": "TSLA",
+    "Meta": "META",
+    "NVIDIA": "NVDA",
+    "Berkshire": "BRK-B",
+    "JPMorgan": "JPM",
+    "Visa": "V"
 }
 
-# 기간 설정: 최근 1년
-end_date = datetime.today()
-start_date = end_date - timedelta(days=365)
+selected = st.multiselect("종목 선택", options=list(top10.keys()), default=list(top10.keys())[:5])
 
-# 데이터 다운로드
-st.info("데이터를 불러오는 중입니다. 잠시만 기다려주세요...")
+if not selected:
+    st.warning("최소 하나 이상의 종목을 선택해 주세요.")
+    st.stop()
 
-data = yf.download(list(top10.values()), start=start_date, end=end_date)['Adj Close']
+tickers = [top10[name] for name in selected]
 
-# Plotly 시각화
-fig = go.Figure()
+# -------------------------------
+# 3. 데이터 다운로드 및 검증
+# -------------------------------
+@st.cache_data
+def download_valid_data(tickers, start, end):
+    valid_data = {}
+    for ticker in tickers:
+        try:
+            data = yf.download(ticker, start=start, end=end)['Adj Close']
+            if not data.empty:
+                valid_data[ticker] = data
+        except Exception as e:
+            st.warning(f"{ticker} 다운로드 실패: {e}")
+    return pd.DataFrame(valid_data)
 
-for name, ticker in top10.items():
-    fig.add_trace(go.Scatter(
-        x=data.index,
-        y=data[ticker],
-        mode='lines',
-        name=name
-    ))
+with st.spinner("데이터 다운로드 중..."):
+    data = download_valid_data(tickers, start_date, end_date)
 
-fig.update_layout(
-    title="글로벌 시가총액 Top 10 기업 최근 1년 주가 변동 (Adj Close)",
-    xaxis_title="날짜",
-    yaxis_title="주가 (USD 또는 현지 통화)",
-    legend_title="기업명",
-    template="plotly_white"
-)
+# -------------------------------
+# 4. 시각화
+# -------------------------------
+if not data.empty:
+    st.subheader("종목별 조정 종가")
+    st.line_chart(data)
+else:
+    st.error("선택한 종목에 대한 유효한 데이터가 없습니다.")
 
-st.plotly_chart(fig, use_container_width=True)
-
-st.caption("""
-시가총액 기준 상위 10개 글로벌 기업의 최근 1년 주가 변동을 한눈에 볼 수 있습니다.  
-*데이터는 Yahoo Finance 제공.  
-(참고: 사우디 아람코(2222.SR)는 리얄 단위, TSMC는 대만증시 단위)  
-""")
