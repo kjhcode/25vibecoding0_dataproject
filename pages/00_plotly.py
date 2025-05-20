@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-
-# 한글 폰트 깨짐 방지 (plotly에선 대체로 불필요하지만 환경 따라)
 import koreanize_matplotlib
 
 st.set_page_config(layout="wide", page_title="서울특별시 인구 연령별 시각화")
@@ -22,16 +20,16 @@ df_all, df_sex = load_data()
 total_row = df_all[df_all['행정구역'].str.contains('서울특별시 ')].iloc[0]
 sex_row = df_sex[df_sex['행정구역'].str.contains('서울특별시 ')].iloc[0]
 
-# (2) 연령 컬럼만 추출
+# (2) 연령 컬럼만 추출 (문자열 변환 → 쉼표제거 → 숫자형)
 age_cols = [col for col in df_all.columns if '계_' in col and ('세' in col or '100세' in col)]
 ages = [col.split('_')[-1] for col in age_cols]
-age_counts = total_row[age_cols].str.replace(',', '').astype(int)
+age_counts = total_row[age_cols].astype(str).str.replace(',', '').astype(int)
 
-# (3) 남녀 별도 추출
+# (3) 남녀 별도 추출 (문자열 변환 → 쉼표제거 → 숫자형)
 male_cols = [col for col in df_sex.columns if '남_' in col and ('세' in col or '100세' in col)]
 female_cols = [col for col in df_sex.columns if '여_' in col and ('세' in col or '100세' in col)]
-male_counts = sex_row[male_cols].str.replace(',', '').astype(int)
-female_counts = sex_row[female_cols].str.replace(',', '').astype(int)
+male_counts = sex_row[male_cols].astype(str).str.replace(',', '').astype(int)
+female_counts = sex_row[female_cols].astype(str).str.replace(',', '').astype(int)
 
 # =====================
 # 1) 연령별 전체 인구 막대그래프
